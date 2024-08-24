@@ -1,20 +1,25 @@
+import json
+
 from github import Github, Auth
 import os
-dir = r"C:\Users\ScruffyTomato\Desktop\Rihan\Programming Fun\All Code Here"
-auth = Auth.Token("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")
+f = open("Settings.json")
+Settings = json.load(f)
+f.close()
+dir = Settings["working_dir"]
+auth = Auth.Token(Settings["auth_token"])
 g = Github(auth=auth)
 existing_repos = []
 list_of_paths = []
 list_of_paths2 = []
 check_for_deletion = []
 user = g.get_user()
-message: str = "First Commit."
-delete_message = "Deleting a File."
-update_message = "Updating a File."
-newly_created_message = "New File created."
+message: str = Settings["commit_message"]
+delete_message = Settings["delete_message"]
+update_message = Settings["update_message"]
+newly_created_message = Settings["newly_created_message"]
 
 
-def commit_files(p):
+def commit_files(p, project, repo):
     for item in os.listdir(p):
         file_path = os.path.join(p, item)
 
@@ -23,16 +28,16 @@ def commit_files(p):
                 with open(file_path, 'r') as f:
                     contents = f.read()
                     pa = file_path.replace(
-                        "C:\\Users\\ScruffyTomato\\Desktop\\Rihan\\Programming Fun\\All Code Here\\" + project + "\\",
+                        dir + project + "\\",
                         "")
                     paa = pa.replace("\\", "/")
                     repo.create_file(paa, message, contents, "main")
         if os.path.isdir(file_path):
             if not item == "node_modules":
-                commit_files(file_path)
+                commit_files(file_path, project, repo)
 
 
-def edit_files(p, repot):
+def edit_files(p, repot, project):
     contents = repot.get_contents("")
     while contents:
         file_content = contents.pop(0)
@@ -49,7 +54,7 @@ def edit_files(p, repot):
                 with open(file_path, 'r') as f:
                     content = f.read()
                     pa = file_path.replace(
-                        "C:\\Users\\ScruffyTomato\\Desktop\\Rihan\\Programming Fun\\All Code Here\\" + project + "\\",
+                        dir + project + "\\",
                         "")
                     paa = pa.replace("\\", "/")
 
@@ -72,7 +77,7 @@ def edit_files(p, repot):
 
         if os.path.isdir(file_path):
             if item != "node_modules":
-                edit_files(file_path, repot)
+                edit_files(file_path, repot, project)
 
 
 def delete_files(repot):
@@ -85,24 +90,28 @@ def delete_files(repot):
             repot.delete_file(file, delete_message, cont.sha, branch="main")
 
 
-user_repos = user.get_repos()
-for r in user_repos:
-    
-    existing_repos.append(r.name)
+def update_repos():
+    user_repos = user.get_repos()
+    for r in user_repos:
 
-os.chdir(dir)
+        existing_repos.append(r.name)
 
-for project in os.listdir():
-    if project not in existing_repos:
-        print("Currently pushing " + project + " to GitHub.")
-        repo = user.create_repo(project, f"A new repository automatically created to push {project} to github", private=True)
-        os.chdir(os.path.join(dir, project))
+    os.chdir(dir)
 
-        commit_files(os.getcwd())
-    else:
-        repository = user.get_repo(project)
-        print('The repo ' + project + ' already exists on GitHub.')
-        edit_files(os.getcwd(), repository)
-        delete_files(repository)
+    for project in os.listdir():
+        if project not in existing_repos:
+            print("Currently pushing " + project + " to GitHub.")
+            repo = user.create_repo(project, f"A new repository automatically created to push {project} to github", private=True)
+            os.chdir(os.path.join(dir, project))
 
-g.close()
+            commit_files(os.getcwd(), project, repo)
+        else:
+            repository = user.get_repo(project)
+            print('The repo ' + project + ' already exists on GitHub.')
+            edit_files(os.getcwd(), repository, project)
+            delete_files(repository)
+
+    g.close()
+
+
+update_repos()
